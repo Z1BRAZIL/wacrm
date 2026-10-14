@@ -87,7 +87,7 @@ const nextConfig: NextConfig = {
    */
   allowedDevOrigins:
     process.env.BASE44_PREVIEW_MODE === "1" && process.env.BASE44_PUBLIC_HOST_SUFFIX
-      ? [`https://3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`]
+      ? [`3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`]
       : undefined,
 
   /**

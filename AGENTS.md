@@ -22,6 +22,9 @@ The server-side Supabase client uses `SUPABASE_URL=http://localhost:3000`
 (gated on `BASE44_PREVIEW_MODE === '1'`). The middleware skips auth logic
 for `/auth/v1/` and `/rest/v1/` paths to avoid request recursion. All
 three changes are no-ops when `BASE44_PREVIEW_MODE` is unset.
+Next.js `allowedDevOrigins` takes hostnames without `https://`; the preview
+hostname is derived from `BASE44_PUBLIC_HOST_SUFFIX` only when the preview
+flag equals `"1"`. Compose passes the flag through rather than forcing it.
 
 ## Local Supabase credentials
 JWT secret, anon key, service-role key, and DB passwords are generated
