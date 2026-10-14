@@ -2,10 +2,26 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Base44 preview: skip auth logic for proxied Supabase API paths.
+  // The server-side Supabase client calls these paths on localhost:3000,
+  // which would re-enter the middleware and recurse without this guard.
+  if (
+    process.env.BASE44_PREVIEW_MODE === '1' &&
+    (request.nextUrl.pathname.startsWith('/auth/v1/') ||
+      request.nextUrl.pathname.startsWith('/rest/v1/'))
+  ) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
+  const supabaseUrl =
+    process.env.BASE44_PREVIEW_MODE === '1'
+      ? process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
+      : process.env.NEXT_PUBLIC_SUPABASE_URL!
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

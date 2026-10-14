@@ -62,6 +62,35 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   /**
+   * Base44 preview: proxy Supabase Auth + REST through the Next.js
+   * dev server so the browser uses a single origin (cookie auth
+   * stays same-origin). The server-side Supabase client calls
+   * http://localhost:3000 (set via SUPABASE_URL), which hits these
+   * rewrites and forwards to the internal compose services.
+   * Gated on BASE44_PREVIEW_MODE — no effect in production.
+   */
+  async rewrites() {
+    if (process.env.BASE44_PREVIEW_MODE === "1") {
+      return [
+        { source: "/auth/v1/:path*", destination: "http://gotrue:9999/:path*" },
+        { source: "/rest/v1/:path*", destination: "http://postgrest:3000/:path*" },
+      ];
+    }
+    return [];
+  },
+
+  /**
+   * Base44 preview: allow the preview proxy origin to access dev
+   * assets and HMR. Next.js gates dev assets by ORIGIN; without this
+   * the preview origin is blocked even though the page loads.
+   * Gated on BASE44_PREVIEW_MODE — no effect in production.
+   */
+  allowedDevOrigins:
+    process.env.BASE44_PREVIEW_MODE === "1" && process.env.BASE44_PUBLIC_HOST_SUFFIX
+      ? [`https://3000-${process.env.BASE44_PUBLIC_HOST_SUFFIX}`]
+      : undefined,
+
+  /**
    * Cache-Control policy.
    *
    * Why this exists:

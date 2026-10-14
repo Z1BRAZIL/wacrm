@@ -1,0 +1,117 @@
+# ============================================================
+# Base44 development compose for wacrm (Next.js + local Supabase)
+# Runs the app FROM SOURCE with live reload — not a prebuilt image.
+# ============================================================
+services:
+  # ---- PostgreSQL (plain image; GoTrue + init script build the schema) ----
+  db:
+    image: postgres:15
+    restart: on-failure
+    environment:
+      POSTGRES_PASSWORD: 30674e7374e46a9eadf99ec9c55c1904
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./.base44/init-db-schema.sql:/docker-entrypoint-initdb.d/01-init-db-schema.sql:ro
+
+  # ---- GoTrue (Supabase Auth) — creates the auth schema on start ----
+  gotrue:
+    image: supabase/gotrue:v2.164.0
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:30674e7374e46a9eadf99ec9c55c1904@db:5432/postgres?sslmode=disable
+      GOTRUE_JWT_SECRET: 0731fcd085aa93beb0c1f9adc367d160e5d39486a67dc475daaeb5fe4c815515
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_LOG_LEVEL: info
+      API_EXTERNAL_URL: http://localhost:9999
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9999/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # ---- One-shot: roles, storage schema, publication, app migrations ----
+  db-init:
+    image: postgres:15
+    depends_on:
+      gotrue:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: 30674e7374e46a9eadf99ec9c55c1904
+    volumes:
+      - ./.base44/init-schema.sql:/init-schema.sql:ro
+      - ./.base44/init-db.sh:/init-db.sh:ro
+      - ./supabase/migrations:/migrations:ro
+    entrypoint: ["sh", "/init-db.sh"]
+    restart: "no"
+
+  # ---- PostgREST (Supabase REST API) ----
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    restart: on-failure
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PGRST_DB_URI: postgres://authenticator:30674e7374e46a9eadf99ec9c55c1904@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: 0731fcd085aa93beb0c1f9adc367d160e5d39486a67dc475daaeb5fe4c815515
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_SERVER_PORT: "3000"
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ---- Next.js dev server (runs from bind-mounted source) ----
+  web:
+    image: node:22
+    restart: on-failure
+    depends_on:
+      postgrest:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - web-node-modules:/app/node_modules
+    working_dir: /app
+    command: ["sh", "-ec", "npm install --no-audit --no-fund && exec npm run dev -- -H 0.0.0.0 -p 3000"]
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    environment:
+      - BASE44_PREVIEW_MODE=1
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+      - BASE44_SANDBOX_HOST_DOMAIN=${BASE44_SANDBOX_HOST_DOMAIN}
+      - NEXT_PUBLIC_SUPABASE_URL=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - SUPABASE_URL=http://localhost:3000
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+
+volumes:
+  db-data:
+  web-node-modules:

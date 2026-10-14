@@ -4,8 +4,16 @@ import { cookies } from 'next/headers'
 export async function createClient() {
   const cookieStore = await cookies()
 
+  // Base44 preview: the server-side client calls the Supabase API
+  // through the Next.js dev server's rewrites (http://localhost:3000)
+  // instead of the public URL, avoiding an external proxy round-trip.
+  const supabaseUrl =
+    process.env.BASE44_PREVIEW_MODE === '1'
+      ? process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
+      : process.env.NEXT_PUBLIC_SUPABASE_URL!
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

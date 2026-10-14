@@ -1,0 +1,31 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "description": "Supabase anon key (JWT). A local-dev value is in .env.base44-defaults; replace with your own Supabase project's anon key to use a remote project.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "description": "Supabase service-role key (JWT). A local-dev value is in .env.base44-defaults; replace with your own Supabase project's service-role key for production.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "ENCRYPTION_KEY",
+      "description": "64-char hex key (32 bytes) for AES-256-GCM token encryption. A development placeholder is in .env.base44-defaults; replace with a real key for production (node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\").",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "META_APP_SECRET",
+      "description": "Meta App Secret for HMAC-SHA256 webhook verification. A development placeholder is in .env.base44-defaults; replace with your Meta for Developers App Secret for WhatsApp integration.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    }
+  ]
+}
