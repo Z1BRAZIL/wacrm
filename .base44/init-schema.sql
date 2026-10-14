@@ -60,9 +60,16 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
     owner uuid,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
+    public boolean DEFAULT false,
+    file_size_limit bigint,
+    allowed_mime_types text[],
     CONSTRAINT buckets_owner_fkey FOREIGN KEY (owner) REFERENCES auth.users(id),
     PRIMARY KEY (id)
 );
+-- Add columns if table already existed without them (idempotent)
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS public boolean DEFAULT false;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS file_size_limit bigint;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS allowed_mime_types text[];
 CREATE UNIQUE INDEX IF NOT EXISTS bname ON storage.buckets USING BTREE (name);
 
 CREATE TABLE IF NOT EXISTS storage.objects (
@@ -110,6 +117,9 @@ BEGIN
     return split_part(_filename, '.', 2);
 END
 $$;
+
+-- Set search_path so app migrations can call uuid_generate_v4() without schema qualification
+ALTER DATABASE postgres SET search_path = public, extensions, auth;
 
 -- ============================================================
 -- Realtime publication (app migrations ALTER this)

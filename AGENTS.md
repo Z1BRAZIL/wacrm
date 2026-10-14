@@ -35,6 +35,19 @@ so signup works immediately. GoTrue creates the `auth` schema on first
 start; the `db-init` service waits for `auth.uid()` to exist before
 running app migrations.
 
+## Migration tracking
+`db-init` uses a `public.schema_migrations` table to track which migration
+files have been applied. If migrations were applied manually (e.g. during
+setup debugging), `db-init` detects this (profiles table exists but
+schema_migrations is empty) and marks all as applied, then skips them on
+subsequent runs. This avoids re-running non-idempotent migrations (e.g.
+migration 017 creates policies without DROP IF EXISTS).
+
+## PostgREST healthcheck
+The `postgrest/postgrest` image has no shell, curl, or wget, so no
+healthcheck is configured. The `web` service depends on
+`service_started` (not `service_healthy`) for postgrest.
+
 ## Verification
 - `docker compose -f docker-compose.base44.yml up -d --build`
 - App at `http://localhost:3000` → redirects to `/login`

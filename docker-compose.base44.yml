@@ -61,6 +61,8 @@ services:
     restart: "no"
 
   # ---- PostgREST (Supabase REST API) ----
+  # No healthcheck: the postgrest image has no shell/curl/wget.
+  # web depends on service_started instead.
   postgrest:
     image: postgrest/postgrest:v12.2.3
     restart: on-failure
@@ -75,12 +77,6 @@ services:
       PGRST_SERVER_HOST: 0.0.0.0
       PGRST_SERVER_PORT: "3000"
       PGRST_DB_USE_LEGACY_GUCS: "false"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
 
   # ---- Next.js dev server (runs from bind-mounted source) ----
   web:
@@ -88,7 +84,7 @@ services:
     restart: on-failure
     depends_on:
       postgrest:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - .:/app
       - web-node-modules:/app/node_modules
